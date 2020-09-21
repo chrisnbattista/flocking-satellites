@@ -1,0 +1,25 @@
+{
+  "name": "flocking-satellites",
+  "version": "1.0.0",
+  "description": "A demonstration of the flocking algorithm invented by Craig Reynolds (http://www.cs.toronto.edu/~dt/siggraph97-course/cwr87/). A swarm of satellites is conceptualized in 2D as they progress in their orbit, at the same time utilizing flocking to avoid oncoming space debris without degrading their formation.",
+  "main": "index.html",
+  "dependencies": {
+    "phaser": "^3.24.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "dev": "parcel index.html ./assets/*",
+    "build": "parcel build index.html ./assets/*",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrisnbattista/flocking-satellites.git"
+  },
+  "author": "Chris Battista",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chrisnbattista/flocking-satellites/issues"
+  },
+  "homepage": "https://github.com/chrisnbattista/flocking-satellites#readme"
+}
