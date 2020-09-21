@@ -5,7 +5,8 @@ import Phaser from 'phaser';
 // configuration file or database.
 const NUM_SATS = 16;
 const INITIAL_FORMATION_RADIUS = 130;
-const NEIGHBOR_RADIUS = 60;
+const NEIGHBOR_RADIUS = 100;
+const AVOID_RADIUS = NEIGHBOR_RADIUS * 0.7;
 
 const WINDOW_WIDTH = 1490;
 const WINDOW_HEIGHT = 745;
@@ -82,6 +83,7 @@ function create ()
     this.orbit_line.lineTo(this.scale.width, this.scale.height/2)
 
     this.link_line = new Phaser.Geom.Line(0, 0, 0, 0);
+    this.avoid_line = new Phaser.Geom.Line(0, 0, 0, 0);
 
     this.lead_circle = new Phaser.Geom.Circle()
     this.lead_circle.radius = 30;
@@ -91,6 +93,7 @@ function update ()
 {
 
     this.link_line_list = [];
+    this.avoid_line_list = [];
 
     // Update simulation dynamics
     // The graphics engine draws these automatically
@@ -104,6 +107,8 @@ function update ()
         // a baseline spin.
         sat_list[i].x += 0.1;
         sat_list[i].angle += sat_list[i].rotVel;
+        sat_list[i].x += 0.05 * Math.cos(sat_list[i].angle);
+        sat_list[i].y += 0.05 * Math.sin(sat_list[i].angle);
 
         // Flocking dynamics
         if (i != 0) { // skip the leader satellite, it only concerns
@@ -111,28 +116,54 @@ function update ()
 
             for (var j=0; j<NUM_SATS; j++) {
 
-                // find neighbors
+                // find neighbors to move towards, and obstacles to avoid
                 var neighbor_locs = [];
+                var avoid_locs = [];
+                var distance;
                 if (j != i) { // don't interact with yourself
-                    // Cohesion (element #1 of flocking algorithm)
-                    // This section adds an attractor that causes satellites 
-                    // to move towards others near them
-                    if (f_norm(sat_list[i], sat_list[j]) < NEIGHBOR_RADIUS) {
 
-                        // Record as neighbor
-                        neighbor_locs.push([sat_list[j].x, sat_list[j].y]);
+                    distance = f_norm(sat_list[i], sat_list[j]);
 
-                        // Queue indicator
-                        this.link_line_list.push([sat_list[i].x, sat_list[i].y,
-                                            sat_list[j].x, sat_list[j].y]);
+                    if (distance < NEIGHBOR_RADIUS) {
+
+                        if (distance > AVOID_RADIUS) {
+                            // Cohesion (element #1 of flocking algorithm)
+                            // This section adds an attractor that causes satellites 
+                            // to move towards others near them
+
+                            // Record as neighbor
+                            neighbor_locs.push([sat_list[j].x, sat_list[j].y]);
+
+                            // Queue indicator
+                            this.link_line_list.push([sat_list[i].x, sat_list[i].y,
+                                                sat_list[j].x, sat_list[j].y]);
+                        } else {
+                            // Separation (element #2 of flocking algorithm)
+                            // Step change to avoidance behavior if the neighbor
+                            // gets too close.
+
+                            // Record as obstacle
+                            avoid_locs.push([sat_list[j].x, sat_list[j].y]);
+
+                            // Queue indicator
+                            this.avoid_line_list.push([sat_list[i].x, sat_list[i].y,
+                                sat_list[j].x, sat_list[j].y]);
+                        }
                     }
                 }
 
                 // steer towards neighbors
-                var steer_direction = new Phaser.Math.Vector2(
-                    average(col_slice(neighbor_locs, 0)) - sat_list[i].x,
-                    average(col_slice(neighbor_locs, 1)) - sat_list[i].y
-                ).normalize();
+                var steer_direction =
+                    // (new Phaser.Math.Vector2(
+                    //     average(col_slice(neighbor_locs, 0)) - sat_list[i].x,
+                    //     average(col_slice(neighbor_locs, 1)) - sat_list[i].y
+                    // ).normalize().scale(0.1).add(
+                        new Phaser.Math.Vector2(
+                            -(average(col_slice(avoid_locs, 0)) - sat_list[i].x),
+                            -(average(col_slice(avoid_locs, 1)) - sat_list[i].y)
+                        ).normalize()
+                    //)
+                //).normalize()
 
 
                 // apply thrust
@@ -146,6 +177,8 @@ function update ()
         // has gone over.
         if (sat_list[i].x > this.scale.width) {
             sat_list[i].x -= this.scale.width;
+        } else if (sat_list[i].x < 0) {
+            sat_list[i].x += this.scale.width;
         }
     }
 
@@ -162,5 +195,10 @@ function update ()
     this.graphics.lineStyle(0.5, 0x04D9FF);
     for (var i=0; i<this.link_line_list.length; i++) {
         this.graphics.lineBetween(...this.link_line_list[i]);
+    }
+
+    this.graphics.lineStyle(0.5, 0xFFFF00);
+    for (var i=0; i<this.avoid_line_list.length; i++) {
+        this.graphics.lineBetween(...this.avoid_line_list[i]);
     }
 }
